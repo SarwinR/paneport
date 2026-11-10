@@ -113,10 +113,17 @@ impl MacClient {
             _ => MacError::Unreachable(e.to_string()),
         })?;
         stream.set_read_timeout(Some(Duration::from_secs(30))).map_err(unreachable)?;
-        write!(stream, "GET {path} HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\n\r\n", self.host, self.port)
-            .map_err(unreachable)?;
+        stream.set_nodelay(true).map_err(unreachable)?;
+        // One write, so the whole request arrives together.
+        let request = format!("GET {path} HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\n\r\n", self.host, self.port);
+        stream.write_all(request.as_bytes()).map_err(unreachable)?;
         let mut response = Vec::new();
-        stream.read_to_end(&mut response).map_err(unreachable)?;
+        if let Err(e) = stream.read_to_end(&mut response) {
+            // A connection closed abruptly after a complete response is still a success.
+            if parse_http_response(&response).is_none() {
+                return Err(unreachable(e));
+            }
+        }
         match parse_http_response(&response) {
             Some((200, body)) => Ok(body.to_vec()),
             Some((status, _)) => Err(MacError::Unexpected(format!("the Mac answered {path} with HTTP {status}"))),

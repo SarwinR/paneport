@@ -72,16 +72,40 @@ final class ReceiverServer {
 
     // MARK: - Private
 
+    /// Requests larger than this are answered as they are; ours are a few hundred bytes.
+    private static let maxRequestSize = 64 * 1024
+
     private func serve(_ connection: NWConnection) {
         connection.start(queue: queue)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, _, _ in
+        receiveRequest(on: connection, received: Data())
+    }
+
+    /// Reads until the request head is complete, then answers. A request can arrive in
+    /// several packets; answering early and closing while the rest is still unread makes
+    /// TCP reset the connection, so the client never gets the response.
+    private func receiveRequest(on connection: NWConnection, received: Data) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: Self.maxRequestSize) {
+            [weak self] data, _, isComplete, error in
             guard let self else {
                 connection.cancel()
                 return
             }
-            let response = self.response(for: HTTPRequestHead(data))
+            var request = received
+            if let data { request.append(data) }
+            let keepReading = !Self.isCompleteRequestHead(request) && !isComplete && error == nil
+                && request.count < Self.maxRequestSize
+            if keepReading {
+                self.receiveRequest(on: connection, received: request)
+                return
+            }
+            let response = self.response(for: HTTPRequestHead(request))
             connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
         }
+    }
+
+    /// Whether `data` holds a whole HTTP request head (it ends with a blank line).
+    static func isCompleteRequestHead(_ data: Data) -> Bool {
+        data.range(of: Data("\r\n\r\n".utf8)) != nil
     }
 
     private func response(for request: HTTPRequestHead) -> Data {

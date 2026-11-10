@@ -8,6 +8,12 @@ final class ReceiverServerTests: XCTestCase {
         XCTAssertEqual(request.host, "10.0.0.2:8080")
     }
 
+    func testWaitsForTheWholeRequestHead() {
+        XCTAssertFalse(ReceiverServer.isCompleteRequestHead(Data("GET ".utf8)))
+        XCTAssertFalse(ReceiverServer.isCompleteRequestHead(Data("GET /version HTTP/1.1\r\nHost: x\r\n".utf8)))
+        XCTAssertTrue(ReceiverServer.isCompleteRequestHead(Data("GET /version HTTP/1.1\r\nHost: x\r\n\r\n".utf8)))
+    }
+
     func testDefaultsForAnUnreadableRequest() {
         let request = HTTPRequestHead(nil)
         XCTAssertEqual(request.path, "/")
