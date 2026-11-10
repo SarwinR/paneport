@@ -48,6 +48,8 @@ final class ReceiverServerTests: XCTestCase {
             host: "1.2.3.4:8080",
             displaysJSON: Data(#"[{"name":"</script>"}]"#.utf8),
             script: "run()")
-        XCTAssertEqual(page, #"host=1.2.3.4:8080 list=[{"name":"</script>"}] code=run()"#)
+        // "<" becomes "\u003c" so a display name can't end the page's <script> tag.
+        let escapedName = #"\u003c/script>"#   // raw string: a literal backslash-u
+        XCTAssertEqual(page, "host=1.2.3.4:8080 list=[{\"name\":\"\(escapedName)\"}] code=run()")
     }
 }

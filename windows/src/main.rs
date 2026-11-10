@@ -87,24 +87,45 @@ fn run() -> Result<(), String> {
         config.assignments.clear();
     }
 
-    let host = match options.host.or_else(|| config.host.clone()) {
+    let mut host = match options.host.or_else(|| config.host.clone()) {
         Some(host) => host,
         None => config::prompt("Mac address, as shown on Paneport's Connect tab (for example 192.168.1.20:8080): "),
     };
-    let mac = api::MacClient::new(&host);
-    let version = mac
-        .version()
-        .map_err(|e| format!("Can't reach Paneport at {host}: {e}\nCheck the address and that Paneport is running."))?;
-    update::check(&mac, &version)?;
+    let (mac, displays) = connect(&mut host)?;
 
     config.host = Some(host);
     config.save();
-
-    let displays = mac.displays()?;
-    if displays.is_empty() {
-        return Err(
-            "The Mac isn't streaming any displays. Press Start Streaming in Paneport, then run this again.".into()
-        );
-    }
     app::run(app::Startup { mac_host: mac.host().to_string(), displays, config, vsync: options.vsync })
+}
+
+/// Waits until Paneport at `host` is streaming. If the Mac can't be reached at all, asks
+/// whether to try again or use another address (which then replaces `host`).
+#[cfg(windows)]
+fn connect(host: &mut String) -> Result<(api::MacClient, Vec<api::DisplayInfo>), String> {
+    let mut waiting = false;
+    loop {
+        let mac = api::MacClient::new(host);
+        let result = mac.version().and_then(|version| Ok((version, mac.displays()?)));
+        match result {
+            Ok((version, displays)) if !displays.is_empty() => {
+                update::check(&mac, &version)?;
+                return Ok((mac, displays));
+            }
+            Ok(_) | Err(api::MacError::NotStreaming) => {
+                if !waiting {
+                    println!("Waiting for Paneport at {host} to start streaming. Press Start Streaming on the Mac (Ctrl+C to quit)…");
+                    waiting = true;
+                }
+                std::thread::sleep(std::time::Duration::from_secs(2));
+            }
+            Err(e) => {
+                waiting = false;
+                eprintln!("Can't reach Paneport at {host}: {e}");
+                let answer = config::prompt("Press Enter to try again, or type a different address: ");
+                if !answer.is_empty() {
+                    *host = answer;
+                }
+            }
+        }
+    }
 }

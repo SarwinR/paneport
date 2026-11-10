@@ -2,7 +2,8 @@
 
 use crate::protocol::{parse_http_response, split_host};
 use serde::Deserialize;
-use std::io::{Read, Write};
+use std::fmt;
+use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
@@ -51,6 +52,26 @@ pub struct PointerShapeMessage {
     pub hy: f64,
 }
 
+/// Why a request to the Mac failed.
+#[derive(Debug)]
+pub enum MacError {
+    /// Nothing is listening at the address: Paneport isn't streaming, or isn't running.
+    NotStreaming,
+    /// The Mac couldn't be reached at all.
+    Unreachable(String),
+    /// The Mac answered, but not as expected.
+    Unexpected(String),
+}
+
+impl fmt::Display for MacError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MacError::NotStreaming => write!(f, "nothing is answering there, so Paneport isn't streaming"),
+            MacError::Unreachable(reason) | MacError::Unexpected(reason) => write!(f, "{reason}"),
+        }
+    }
+}
+
 pub struct MacClient {
     host: String,
     port: u16,
@@ -67,34 +88,39 @@ impl MacClient {
         &self.host
     }
 
-    pub fn version(&self) -> Result<VersionInfo, String> {
+    pub fn version(&self) -> Result<VersionInfo, MacError> {
         let body = self.get("/version")?;
-        serde_json::from_slice(&body)
-            .map_err(|_| "the Mac's Paneport is too old for this app; update it to the latest release".to_string())
+        serde_json::from_slice(&body).map_err(|_| {
+            MacError::Unexpected("the Mac's Paneport is too old for this app; update it to the latest release".into())
+        })
     }
 
-    pub fn displays(&self) -> Result<Vec<DisplayInfo>, String> {
+    pub fn displays(&self) -> Result<Vec<DisplayInfo>, MacError> {
         let body = self.get("/displays.json")?;
-        serde_json::from_slice(&body).map_err(|e| format!("unexpected display list from the Mac: {e}"))
+        serde_json::from_slice(&body).map_err(|e| MacError::Unexpected(format!("unexpected display list: {e}")))
     }
 
     /// A plain HTTP GET; the Mac's server closes the connection after each response.
-    pub fn get(&self, path: &str) -> Result<Vec<u8>, String> {
+    pub fn get(&self, path: &str) -> Result<Vec<u8>, MacError> {
+        let unreachable = |e: std::io::Error| MacError::Unreachable(e.to_string());
         let address = (self.host.as_str(), self.port)
             .to_socket_addrs()
-            .map_err(|e| e.to_string())?
+            .map_err(|e| MacError::Unreachable(format!("can't find {}: {e}", self.host)))?
             .next()
-            .ok_or("the address didn't resolve")?;
-        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(3)).map_err(|e| e.to_string())?;
-        stream.set_read_timeout(Some(Duration::from_secs(30))).map_err(|e| e.to_string())?;
+            .ok_or_else(|| MacError::Unreachable(format!("can't find {}", self.host)))?;
+        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(3)).map_err(|e| match e.kind() {
+            ErrorKind::ConnectionRefused => MacError::NotStreaming,
+            _ => MacError::Unreachable(e.to_string()),
+        })?;
+        stream.set_read_timeout(Some(Duration::from_secs(30))).map_err(unreachable)?;
         write!(stream, "GET {path} HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\n\r\n", self.host, self.port)
-            .map_err(|e| e.to_string())?;
+            .map_err(unreachable)?;
         let mut response = Vec::new();
-        stream.read_to_end(&mut response).map_err(|e| e.to_string())?;
+        stream.read_to_end(&mut response).map_err(unreachable)?;
         match parse_http_response(&response) {
             Some((200, body)) => Ok(body.to_vec()),
-            Some((status, _)) => Err(format!("the Mac answered {path} with HTTP {status}")),
-            None => Err(format!("the Mac sent an unreadable response for {path}")),
+            Some((status, _)) => Err(MacError::Unexpected(format!("the Mac answered {path} with HTTP {status}"))),
+            None => Err(MacError::Unexpected(format!("the Mac sent an unreadable response for {path}"))),
         }
     }
 }
