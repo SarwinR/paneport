@@ -1,0 +1,65 @@
+<!doctype html>
+<!--
+  Paneport viewer page.
+
+  The PC saves this page once, because browsers only allow video decoding on local
+  pages. The markup below stays fixed. Each time the saved page opens it loads the
+  current script from the Mac (/receiver.js), so updates arrive without saving again.
+  The copy of the script embedded here is only a fallback for when the Mac can't be reached.
+
+  ReceiverServer.swift fills in three placeholders: HOST, DISPLAYS and SCRIPT, each
+  written with two underscores on both sides. (Not spelled out here, or they'd be
+  replaced inside this comment too.)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paneport</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 16px system-ui, sans-serif; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: contain; cursor: none; }
+  #panel { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #111; padding: 16px; text-align: center; }
+  #panel.hidden { display: none; }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; }
+  #buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 900px; }
+  button.display { font: inherit; padding: 16px 22px; border-radius: 10px; border: 1px solid #444; background: #1d1d1f; color: #fff; cursor: pointer; min-width: 170px; }
+  button.display:hover { background: #2a2a2e; border-color: #0a84ff; }
+  button.display small { display: block; color: #999; margin-top: 4px; font-size: 13px; }
+  input { font: inherit; padding: 6px 8px; width: 15em; background: #000; color: #fff; border: 1px solid #444; border-radius: 6px; }
+  .hint { color: #999; font-size: 14px; max-width: 34em; line-height: 1.5; }
+  #status { position: fixed; left: 8px; bottom: 8px; font-size: 12px; color: #777; pointer-events: none; }
+  #help { max-width: 34em; line-height: 1.5; color: #fc6; }
+</style>
+</head>
+<body>
+<canvas id="screen"></canvas>
+<div id="panel">
+  <h1>Paneport</h1>
+  <label class="hint">Mac address <input id="host" value="__HOST__"></label>
+  <div id="buttons"></div>
+  <div class="hint">Move this window to the monitor you want, then pick a display.<br>Esc leaves fullscreen · S shows or hides the latency stats.</div>
+  <div id="help"></div>
+</div>
+<div id="status"></div>
+<script>const BAKED = __DISPLAYS__;</script>
+<script>
+(function () {
+  function embedded() {
+__SCRIPT__
+  }
+  if (location.protocol !== 'file:') { embedded(); return; }
+  let host = document.getElementById('host').value;
+  try {
+    const saved = localStorage.getItem('paneport-host') || localStorage.getItem('ndl-host');
+    if (saved) host = saved;
+  } catch (e) {}
+  fetch('http://' + host + '/receiver.js', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then(code => { (0, eval)(code); })
+    .catch(embedded);
+})();
+</script>
+</body>
+</html>

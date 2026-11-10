@@ -1,0 +1,42 @@
+# Push a tag like v0.4.0 to build the Mac app (with the Windows receiver inside it) and the
+# standalone Windows receiver, and publish both as a GitHub release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows-receiver:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: windows
+        run: cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PaneportReceiver
+          path: windows/target/release/PaneportReceiver.exe
+
+  mac-app:
+    needs: windows-receiver
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PaneportReceiver
+          path: windows/dist
+      - name: Build the app
+        run: VERSION="${GITHUB_REF_NAME#v}" ./make-app.sh
+      - name: Zip it
+        run: ditto -c -k --keepParent build/Paneport.app "build/Paneport-${GITHUB_REF_NAME}-mac.zip"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/Paneport-*-mac.zip
+            windows/dist/PaneportReceiver.exe

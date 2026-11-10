@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  mac-app:
+    name: Mac app (build and test)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build -c release
+      - name: Unit tests
+        run: swift test
+      - name: Package the app
+        run: ./make-app.sh
+
+  receiver-page:
+    name: Viewer page (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax check
+        run: |
+          node --check Sources/Paneport/Resources/receiver/protocol.js
+          node --check Sources/Paneport/Resources/receiver/receiver.js
+      - name: Unit tests
+        run: node --test Tests/receiver/*.test.js
+
+  windows-receiver:
+    name: Windows receiver (Rust)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - name: Formatting
+        run: cargo fmt --check
+      - name: Build
+        run: cargo build --release
+      - name: Unit tests
+        run: cargo test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PaneportReceiver
+          path: windows/target/release/PaneportReceiver.exe
