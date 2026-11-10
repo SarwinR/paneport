@@ -14,7 +14,7 @@ enum AppInfo {
     static let settingsKey = "PaneportSettings"
 
     /// Shown in the menu bar menu when set.
-    static let websiteURL: URL? = nil
+    static let websiteURL = URL(string: "https://github.com/SarwinR/paneport")
     /// Sponsor or donation page, shown in the menu bar menu when set.
-    static let supportURL: URL? = nil
+    static let supportURL = URL(string: "https://github.com/sponsors/SarwinR")
 }

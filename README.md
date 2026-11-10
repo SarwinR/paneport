@@ -44,14 +44,15 @@ The pointer travels separately from the video, so it moves without waiting for f
 
 ## Install on the Mac
 
-**From a release:** download `Paneport-…-mac.zip` from the Releases page, unzip it and move
+**From a release:** download `Paneport-…-mac.zip` from the
+[Releases page](https://github.com/SarwinR/paneport/releases), unzip it and move
 Paneport to Applications. Releases aren't signed by Apple yet, so the first time,
 right-click the app and choose **Open**.
 
 **From source:** install the Xcode Command Line Tools (`xcode-select --install`), then:
 
 ```sh
-git clone <repository URL> paneport
+git clone https://github.com/SarwinR/paneport.git
 cd paneport
 ./make-app.sh
 open build/Paneport.app
@@ -143,9 +144,8 @@ browser page and the Windows app), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 
 ## Supporting the project
 
-Paneport is free. If it saves you buying an adapter, please consider sponsoring its
-development.
-<!-- Add sponsor and donation links here, and in .github/FUNDING.yml. -->
+Paneport is free. If it saves you buying an adapter, please consider
+[sponsoring its development on GitHub](https://github.com/sponsors/SarwinR).
 
 ## License
 

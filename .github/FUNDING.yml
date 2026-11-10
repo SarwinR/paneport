@@ -1,9 +1,2 @@
-# Shows a "Sponsor" button on the GitHub repository.
-# Uncomment the services you use and fill in your account names or links.
-# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
-
-# github: [your-github-username]
-# ko_fi: your-ko-fi-name
-# buy_me_a_coffee: your-name
-# open_collective: your-collective
-# custom: ["https://your-website.example/donate"]
+# Shows the "Sponsor" button on the repository.
+github: SarwinR

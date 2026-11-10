@@ -13,7 +13,8 @@ this PC's monitors with less delay, and remembers which display goes where.
 
 - **From the Mac:** open the Mac's address in Edge or Chrome on the PC and click
   "Get the Paneport app for Windows". (Release builds of Paneport include it.)
-- **From GitHub Releases:** `PaneportReceiver.exe` on the Releases page.
+- **From GitHub Releases:** `PaneportReceiver.exe` on the
+  [Releases page](https://github.com/SarwinR/paneport/releases).
 - **Build it yourself:** see below.
 
 Windows may warn that the app is from an unknown publisher until releases are code-signed.
