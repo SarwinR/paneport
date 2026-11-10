@@ -1,9 +1,25 @@
 name: CI
 
+# Pushes and pull requests that only change documentation don't need a build.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".github/FUNDING.yml"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".github/FUNDING.yml"
+
+# A newer push to the same branch makes an unfinished run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   mac-app:
