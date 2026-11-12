@@ -34,6 +34,7 @@ monitor each Mac display should use. Both are remembered in `%APPDATA%\Paneport\
 | `--setup` | Choose monitors again. |
 | `--vsync` | Wait for the monitor's refresh: no tearing, slightly more delay. |
 
+While Paneport screens are showing, Windows won't turn the monitors off or go to sleep.
 Press **Esc** on a Paneport screen to quit. The console window shows the delay every five
 seconds, and the same numbers appear in the Mac app.
 

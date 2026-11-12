@@ -3,6 +3,7 @@
 use crate::api::DisplayInfo;
 use crate::config::Config;
 use crate::{session, setup};
+use windows::Win32::System::Power::{SetThreadExecutionState, ES_CONTINUOUS, ES_DISPLAY_REQUIRED, ES_SYSTEM_REQUIRED};
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -68,6 +69,10 @@ impl ApplicationHandler for App {
             }
             self.windows.push(window);
         }
+
+        if !self.windows.is_empty() {
+            keep_displays_on();
+        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -80,6 +85,15 @@ impl ApplicationHandler for App {
             }
             _ => {}
         }
+    }
+}
+
+/// Stops Windows from turning the monitors off or sleeping while Paneport screens are showing,
+/// as video players do. It lasts until this thread (the main one) ends, so quitting releases it.
+fn keep_displays_on() {
+    let previous = unsafe { SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED) };
+    if previous.0 == 0 {
+        eprintln!("Couldn't stop Windows from turning the screens off; check the power settings.");
     }
 }
 
